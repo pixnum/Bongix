@@ -3,14 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bongix - Perpetual Bengali Calendar</title>
+<title>Bongix - Bengali Calendar</title>
 <style>
-html, body {margin:0; padding:0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:#f5f5f5;color:#222; display:flex; justify-content:center; align-items:center; min-height:100vh; box-sizing:border-box;}
-#app{background:#fff; border-radius:20px; border:1px solid #ccc; padding:25px; width:550px; max-width:95%; box-shadow:0 8px 20px rgba(0,0,0,0.15); position:relative; font-size:1.1em;}
+html, body {
+  margin:0; padding:0;
+  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  background:#f5f5f5; color:#222;
+  display:flex; justify-content:center; align-items:center; 
+  min-height:100vh; box-sizing:border-box;
+}
+#app{
+  background:#fff; border-radius:20px; border:1px solid #ccc;
+  padding:25px; width:550px; max-width:95%;
+  box-shadow:0 8px 20px rgba(0,0,0,0.15); position:relative;
+  font-size:1.1em;
+}
 h1{margin:0;text-align:center;font-size:2em;color:#333;}
-#inputs{display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin-top:15px;}
-#inputs input{width:60px; padding:8px; border-radius:8px; border:1px solid #ccc; text-align:center; font-size:1em;}
-#inputs button{padding:6px 12px; border-radius:6px; border:1px solid #ccc; background:#e0e0e0; cursor:pointer; font-size:0.9em;}
+#inputs{
+  display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin-top:15px;
+}
+#inputs input{
+  width:60px; padding:8px; border-radius:8px; border:1px solid #ccc; text-align:center; font-size:1em;
+}
+#inputs button{
+  padding:6px 12px; border-radius:6px; border:1px solid #ccc; background:#e0e0e0; cursor:pointer; font-size:0.9em;
+}
 #inputs button:hover{background:#d0d0d0;}
 #calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:15px;}
 .weekday,.day{text-align:center;padding:10px;border-radius:8px;font-size:1em;}
@@ -18,11 +35,21 @@ h1{margin:0;text-align:center;font-size:2em;color:#333;}
 .day{background:#fafafa;transition:0.2s;cursor:pointer;}
 .day:hover{background:#e8f0fe;}
 .day.festival{background:#ffd699;}
-.day.selected{background:#90caf9;color:#fff;}
-.day.today{border:2px solid #90caf9;}
-#day-details{margin-top:15px;font-size:0.95em;white-space:pre-line;background:#f9f9f9;padding:12px;border-radius:8px;border:1px solid #ddd;max-height:70vh;overflow-y:auto;}
+.day.selected{background:#ff7043;color:#fff;font-weight:bold;box-shadow:0 0 10px rgba(255,112,67,0.6);}
+#day-details{
+  margin-top:15px;
+  font-size:0.95em;
+  white-space:pre-line;
+  background:#f9f9f9;
+  padding:12px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  max-height:70vh;
+  overflow-y:auto;
+}
 #toggleDark{position:absolute;top:15px;right:15px;width:40px;height:40px;background:#e0e0e0;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 footer{margin-top:20px;text-align:center;color:#555;font-size:0.85em;}
+/* Dark Mode */
 .dark body{background:#1f1f1f;color:#eee;}
 .dark #app{background:#2b2b2b;color:#eee;border:1px solid #444;}
 .dark .weekday{background:#3a3a3a;}
@@ -33,6 +60,7 @@ footer{margin-top:20px;text-align:center;color:#555;font-size:0.85em;}
 .dark #toggleDark{background:#444;color:#eee;}
 .dark #inputs button{background:#555;color:#eee;border:1px solid #666;}
 .dark #inputs button:hover{background:#666;}
+/* Responsive */
 @media screen and (max-width:600px){
   #app{width:95%;padding:15px;font-size:1em;}
   #inputs input{width:50px;padding:6px;font-size:0.9em;}
@@ -70,33 +98,102 @@ let APP={lat:23.8103,lon:90.4125,tz:6,month:0,year:2025};
 const yogas=["Vishkumbha","Priti","Ayushman","Saubhagya","Shobhana","Atiganda","Sukarma","Dhriti","Shoola","Ganda","Vriddhi","Dhruva","Vyaghata","Harshana","Vajra","Siddhi","Vyatipata","Variyana","Parigha","Shiva","Siddha","Sadhya","Shubha","Shukla","Brahma","Indra","Vaidhriti"];
 const karanas=["Bava","Balava","Kaulava","Taitila","Gara","Vanija","Vishti","Shakuni","Chatushpada","Naga","Kimstughna"];
 
-// Geolocation
-if(navigator.geolocation){
-navigator.geolocation.watchPosition(pos=>{
-APP.lat=pos.coords.latitude;
-APP.lon=pos.coords.longitude;
-APP.tz=-(new Date().getTimezoneOffset()/60);
-renderCalendar();
-}, err=>{renderCalendar(); }, {enableHighAccuracy:true, maximumAge:10000, timeout:5000});
-}else{renderCalendar();}
+// Format 24h decimal hours to 12h AM/PM
+function formatDecimalHours(hourDecimal){
+  let h = Math.floor(hourDecimal);
+  let m = Math.round((hourDecimal - h)*60);
+  let ampm = h>=12?"PM":"AM";
+  h = h%12; if(h===0) h=12;
+  return `${h}:${m.toString().padStart(2,"0")} ${ampm}`;
+}
 
-// Julian Day & Lunar Functions
+// Muhurtas dynamic
+function getMuhurtasDynamic(date){
+    let sun = getSunTimes(date, APP.lat, APP.lon, APP.tz);
+    let sunrise = parseFloat(sun.sunrise); 
+    let sunset = parseFloat(sun.sunset);
+    let dayLength = sunset - sunrise;
+
+    let rahuIndex = [7,4,5,6,3,2,1][date.getDay()];
+    let rahuStart = sunrise + (rahuIndex-1)*(dayLength/8); 
+    let rahuEnd = rahuStart + dayLength/8;
+
+    let yamaIndex = (date.getDay()+1)%7; 
+    let yamaStart = sunrise + yamaIndex*(dayLength/8); 
+    let yamaEnd = yamaStart + dayLength/8;
+
+    let gulikaIndex = (date.getDay()+6)%7; 
+    let gulikaStart = sunrise + gulikaIndex*(dayLength/8); 
+    let gulikaEnd = gulikaStart + dayLength/8;
+
+    let abhijitStart = sunrise + (dayLength/2 - 0.4);
+    let abhijitEnd = sunrise + (dayLength/2 + 0.4);
+
+    let brahmaStart = sunrise - 1.6;
+    let brahmaEnd = sunrise - 0.6;
+
+    let muhurtas = [
+        {name:"Rahu Kalam", time:`${formatDecimalHours(rahuStart)}-${formatDecimalHours(rahuEnd)}`, meaning:"Generally inauspicious; avoid starting new work."},
+        {name:"Yamaganda", time:`${formatDecimalHours(yamaStart)}-${formatDecimalHours(yamaEnd)}`, meaning:"Avoid for new ventures."},
+        {name:"Gulika", time:`${formatDecimalHours(gulikaStart)}-${formatDecimalHours(gulikaEnd)}`, meaning:"Avoid for important works."},
+        {name:"Abhijit Muhurta", time:`${formatDecimalHours(abhijitStart)}-${formatDecimalHours(abhijitEnd)}`, meaning:"Highly auspicious for rituals and ceremonies."},
+        {name:"Amrit Kaal", time:`${formatDecimalHours(sunrise)}-${formatDecimalHours(sunrise+1.5)}`, meaning:"Very auspicious for rituals and ceremonies."},
+        {name:"Chandra Kaal", time:`${formatDecimalHours(sunset-1.5)}-${formatDecimalHours(sunset)}`, meaning:"Good for starting journeys or new projects."},
+        {name:"Shubh Muhurta Morning", time:`${formatDecimalHours(sunrise)}-${formatDecimalHours(sunrise+2)}`, meaning:"Generally favorable for new work."},
+        {name:"Shubh Muhurta Evening", time:`${formatDecimalHours(sunset-2)}-${formatDecimalHours(sunset)}`, meaning:"Good for important tasks and ceremonies."},
+        {name:"Lakshmi Muhurta", time:`${formatDecimalHours(sunrise+3)}-${formatDecimalHours(sunrise+4)}`, meaning:"Auspicious for wealth-related ceremonies."},
+        {name:"Vijaya Muhurta", time:`${formatDecimalHours(sunrise+8.5)}-${formatDecimalHours(sunrise+9.5)}`, meaning:"Very favorable for success-oriented tasks."},
+        {name:"Griha Pravesh Muhurta", time:`${formatDecimalHours(sunrise+5)}-${formatDecimalHours(sunrise+6)}`, meaning:"Auspicious for housewarming."},
+        {name:"Vivah Muhurta", time:`${formatDecimalHours(sunrise+2)}-${formatDecimalHours(sunrise+3)}`, meaning:"Best for weddings."},
+        {name:"Sthapana Muhurta", time:`${formatDecimalHours(sunrise+4.5)}-${formatDecimalHours(sunrise+5.5)}`, meaning:"For temple or idol installations."},
+        {name:"Yatra Muhurta", time:`${formatDecimalHours(sunrise+1)}-${formatDecimalHours(sunrise+2)}`, meaning:"Good for journeys and travels."},
+        {name:"Sampanna Muhurta", time:`${formatDecimalHours(sunrise+6.5)}-${formatDecimalHours(sunrise+7.5)}`, meaning:"Auspicious for business openings."},
+        {name:"Siddhi Muhurta", time:`${formatDecimalHours(sunrise+2.5)}-${formatDecimalHours(sunrise+3.5)}`, meaning:"Best time for spiritual success and meditation."},
+        {name:"Shakti Muhurta", time:`${formatDecimalHours(sunrise+3.5)}-${formatDecimalHours(sunrise+4.5)}`, meaning:"Favorable for strength and vitality boosting rituals."},
+        {name:"Budh Muhurta", time:`${formatDecimalHours(sunrise+4)}-${formatDecimalHours(sunrise+5)}`, meaning:"Auspicious for intelligence, learning, and wisdom."},
+        {name:"Raja Muhurta", time:`${formatDecimalHours(sunrise+5.5)}-${formatDecimalHours(sunrise+6.5)}`, meaning:"Good for leadership, authority, and important decisions."},
+        {name:"Shubha Muhurta", time:`${formatDecimalHours(sunrise+6)}-${formatDecimalHours(sunrise+7)}`, meaning:"Generally favorable for any auspicious activity."},
+        {name:"Mangal Muhurta", time:`${formatDecimalHours(sunrise+7)}-${formatDecimalHours(sunrise+8)}`, meaning:"Good for starting journeys, moving house, or business ventures."},
+        {name:"Ritu Muhurta", time:`${formatDecimalHours(sunrise+8)}-${formatDecimalHours(sunrise+9)}`, meaning:"Favorable for seasonal rituals and ceremonies."},
+        {name:"Punya Muhurta", time:`${formatDecimalHours(sunrise+1.5)}-${formatDecimalHours(sunrise+2.5)}`, meaning:"Very auspicious for charity, donations, and spiritual acts."},
+        {name:"Vastu Muhurta", time:`${formatDecimalHours(sunrise+9.5)}-${formatDecimalHours(sunrise+10.5)}`, meaning:"Good for house construction, Vastu-related activities."},
+        {name:"Arogya Muhurta", time:`${formatDecimalHours(sunrise+10)}-${formatDecimalHours(sunrise+11)}`, meaning:"Favorable for health-related rituals and medicines."}
+    ];
+
+    // Add Brahma Muhurta at the top
+    muhurtas.unshift({ 
+        name:"Brahma Muhurta", 
+        time:`${formatDecimalHours(brahmaStart)}-${formatDecimalHours(brahmaEnd)}`, 
+        meaning:"Highly auspicious for meditation, spiritual practices, and study." 
+    });
+
+    return muhurtas;
+}
+
+// Festivals
+function getFestivals(y,m,d){
+    let festivals=[];
+    if(m===4 && d===14) festivals.push("Pohela Boishakh");
+    if(m===9 && [28,29,30].includes(d)) festivals.push("Durga Puja");
+    if(m===1 && d===24) festivals.push("Saraswati Puja");
+    if(m===10 && d===22) festivals.push("Kali Puja");
+    if(m===11 && d===12) festivals.push("Jagaddhatri Puja");
+    if(m===3 && d===29) festivals.push("Holi");
+    if(m===10 && d===12) festivals.push("Diwali");
+    let fixedHolidays={"01-26":"Republic Day","08-15":"Independence Day","10-02":"Gandhi Jayanti"};
+    let key=(m.toString().padStart(2,'0'))+"-"+d.toString().padStart(2,'0');
+    if(fixedHolidays[key]) festivals.push(fixedHolidays[key]);
+    return festivals;
+}
+
+// Julian Day and sun/moon calculations
 function toJulianDay(y,m,d){if(m<=2){y-=1;m+=12;} let A=Math.floor(y/100); let B=2-A+Math.floor(A/4); return Math.floor(365.25*(y+4716))+Math.floor(30.6001*(m+1))+d+B-1524.5;}
 function sunMoonLong(date){let jd=toJulianDay(date.getFullYear(),date.getMonth()+1,date.getDate()); let sun=(jd*0.985647)%360; let moon=(jd*13.176396)%360; return {sun,moon};}
 function getTithi(date){let l=sunMoonLong(date); return Math.floor(((l.moon-l.sun+360)%360)/12)+1;}
 function getYoga(date){let l=sunMoonLong(date); return yogas[Math.floor(((l.sun+l.moon)%360)/13.333333)%27];}
 function getKarana(date){return karanas[Math.floor(getTithi(date)*2)%11];}
 
-// Bengali month mapping
-function getBengaliMonth(date){
-    let jd=toJulianDay(date.getFullYear(),date.getMonth()+1,date.getDate());
-    let sunLon=(jd*0.985647)%360;
-    const months=["Boishakh","Joishtho","Ashar","Shrabon","Bhadro","Ashwin","Kartik","Agrahayan","Poush","Magh","Falgun","Chaitra"];
-    let index=Math.floor(((sunLon+30)%360)/30);
-    return months[index%12];
-}
-
-// Sunrise & Sunset
+// Sun times
 function getSunTimes(date,lat,lon,tz){
     let Jday=(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate())/86400000)+2440587.5;
     let n=Jday-2451545.0; let L=280.46+0.9856474*n;
@@ -110,51 +207,7 @@ function getSunTimes(date,lat,lon,tz){
     let H=Math.acos(cosH)*180/Math.PI;
     let sunrise=12-(H/15)-lon/15+tz;
     let sunset=12+(H/15)-lon/15+tz;
-    return {sunrise:formatTime(sunrise), sunset:formatTime(sunset), sunriseDec:sunrise, sunsetDec:sunset};
-}
-function formatTime(h){let hr=Math.floor(h), min=Math.floor((h-hr)*60); let ampm=hr>=12?"PM":"AM"; hr=hr%12; if(hr===0) hr=12; return `${hr}:${min.toString().padStart(2,'0')} ${ampm}`;}
-
-// Bengali festivals
-function getBengaliFestival(date){
-    let month=getBengaliMonth(date), tithi=getTithi(date), festivals=[];
-    if(month==="Boishakh" && tithi===1) festivals.push("Pohela Boishakh");
-    if(month==="Magh" && tithi===5) festivals.push("Saraswati Puja");
-    if(month==="Ashwin" && tithi>=6 && tithi<=10) festivals.push("Durga Puja");
-    if(month==="Kartik" && tithi===14) festivals.push("Kali Puja");
-    if(month==="Kartik" && tithi===8) festivals.push("Jagaddhatri Puja");
-    if(month==="Phalgun" && tithi===15) festivals.push("Holi");
-    if(month==="Kartik" && tithi===15) festivals.push("Diwali");
-    return festivals;
-}
-function getFestivals(y,m,d){return getBengaliFestival(new Date(y,m-1,d));}
-
-// 15 Muhurtas dynamic
-function getMuhurtasDynamic(date){
-    let sun=getSunTimes(date,APP.lat,APP.lon,APP.tz);
-    let dayStart=sun.sunriseDec, dayEnd=sun.sunsetDec;
-    let dayLength=dayEnd-dayStart, segment=dayLength/8;
-    let weekday=date.getDay();
-    const rahuIndex=[8,2,7,5,6,4,3], yamIndex=[5,6,3,7,6,5,4], gulikaIndex=[6,3,5,6,7,4,2];
-    let rahuStart=dayStart+segment*(rahuIndex[weekday]-1);
-    let yamStart=dayStart+segment*(yamIndex[weekday]-1);
-    let gulikaStart=dayStart+segment*(gulikaIndex[weekday]-1);
-    return [
-        {name:"Rahu Kalam", time:`${formatTime(rahuStart)} - ${formatTime(rahuStart+segment)}`, meaning:"Generally inauspicious; avoid starting new work."},
-        {name:"Yamaganda", time:`${formatTime(yamStart)} - ${formatTime(yamStart+segment)}`, meaning:"Avoid for new ventures."},
-        {name:"Gulika", time:`${formatTime(gulikaStart)} - ${formatTime(gulikaStart+segment)}`, meaning:"Avoid for important works."},
-        {name:"Abhijit Muhurta", time:`${formatTime((dayStart+dayEnd)/2-0.25)} - ${formatTime((dayStart+dayEnd)/2+0.25)}`, meaning:"Highly auspicious for rituals and ceremonies."},
-        {name:"Amrit Kaal", time:`${formatTime(dayStart)} - ${formatTime(dayStart+segment)}`, meaning:"Very auspicious for rituals and ceremonies."},
-        {name:"Chandra Kaal", time:`${formatTime(dayEnd-segment)} - ${formatTime(dayEnd)}`, meaning:"Good for starting journeys or new projects."},
-        {name:"Shubh Muhurta Morning", time:`${formatTime(dayStart)} - ${formatTime(dayStart+2*segment)}`, meaning:"Generally favorable for new work."},
-        {name:"Shubh Muhurta Evening", time:`${formatTime(dayEnd-2*segment)} - ${formatTime(dayEnd)}`, meaning:"Good for important tasks and ceremonies."},
-        {name:"Lakshmi Muhurta", time:`${formatTime(dayStart+segment)} - ${formatTime(dayStart+2*segment)}`, meaning:"Auspicious for wealth-related ceremonies."},
-        {name:"Vijaya Muhurta", time:`${formatTime(dayEnd-2*segment)} - ${formatTime(dayEnd-segment)}`, meaning:"Very favorable for success-oriented tasks."},
-        {name:"Griha Pravesh Muhurta", time:`${formatTime(dayStart+2*segment)} - ${formatTime(dayStart+3*segment)}`, meaning:"Auspicious for housewarming."},
-        {name:"Vivah Muhurta", time:`${formatTime(dayStart+segment)} - ${formatTime(dayStart+2*segment)}`, meaning:"Best for weddings."},
-        {name:"Sthapana Muhurta", time:`${formatTime(dayStart+3*segment)} - ${formatTime(dayStart+4*segment)}`, meaning:"For temple or idol installations."},
-        {name:"Yatra Muhurta", time:`${formatTime(dayStart+segment)} - ${formatTime(dayStart+2*segment)}`, meaning:"Good for journeys and travels."},
-        {name:"Sampanna Muhurta", time:`${formatTime(dayStart+4*segment)} - ${formatTime(dayStart+5*segment)}`, meaning:"Auspicious for business openings."}
-    ];
+    return {sunrise:sunrise.toFixed(2), sunset:sunset.toFixed(2)};
 }
 
 // Render calendar
@@ -166,15 +219,15 @@ function renderCalendar(){
     let firstDay=date.getDay();
     for(let i=0;i<firstDay;i++) cal.appendChild(document.createElement('div'));
     const monthDays=new Date(APP.year,APP.month+1,0).getDate();
+    const today = new Date();
     for(let d=1; d<=monthDays; d++){
         let dayDiv=document.createElement('div'); dayDiv.className="day"; dayDiv.textContent=d;
         let fest=getFestivals(APP.year,APP.month+1,d);
         if(fest.length>0) dayDiv.classList.add('festival');
-        dayDiv.addEventListener('click',()=>{
-            document.querySelectorAll('.day').forEach(e=>e.classList.remove('selected'));
+        if(d===today.getDate() && APP.month===today.getMonth() && APP.year===today.getFullYear()){
             dayDiv.classList.add('selected');
-            showDayDetails(APP.year,APP.month+1,d);
-        });
+        }
+        dayDiv.addEventListener('click',()=>showDayDetails(APP.year,APP.month+1,d));
         cal.appendChild(dayDiv);
     }
 }
@@ -188,13 +241,14 @@ function showDayDetails(y,m,d){
 Latitude: ${APP.lat.toFixed(4)}
 Longitude: ${APP.lon.toFixed(4)}
 Timezone: ${APP.tz}
-Sunrise: ${sun.sunrise}
-Sunset: ${sun.sunset}
+Sunrise: ${formatDecimalHours(sun.sunrise)}
+Sunset: ${formatDecimalHours(sun.sunset)}
 Tithi: ${getTithi(date)}
 Yoga: ${getYoga(date)}
 Karana: ${getKarana(date)}
 Festivals: ${getFestivals(y,m,d).join(", ")||"None"}
-Muhurta:`;
+Muhurtas:`;
+
     let muhurtas=getMuhurtasDynamic(date);
     muhurtas.forEach((muh,i)=>{details+=`\n${i+1}. ${muh.name} (${muh.time})\n   Meaning: ${muh.meaning}`;});
     det.textContent=details;
@@ -209,22 +263,20 @@ document.getElementById('prevMonth').addEventListener('click',()=>{APP.month--; 
 document.getElementById('nextMonth').addEventListener('click',()=>{APP.month++; if(APP.month>11){APP.month=0; APP.year++;} document.getElementById('monthInput').value=APP.month+1; document.getElementById('yearInput').value=APP.year; renderCalendar();});
 
 // Today button
-document.getElementById('todayBtn').addEventListener('click',()=>{
-    const today=new Date();
-    APP.year=today.getFullYear();
-    APP.month=today.getMonth();
-    document.getElementById('yearInput').value=APP.year;
-    document.getElementById('monthInput').value=APP.month+1;
+document.getElementById('todayBtn').addEventListener('click', ()=>{
+    const today = new Date();
+    APP.year = today.getFullYear();
+    APP.month = today.getMonth();
+    document.getElementById('yearInput').value = APP.year;
+    document.getElementById('monthInput').value = APP.month+1;
     renderCalendar();
-    showDayDetails(APP.year,APP.month+1,today.getDate());
-    document.querySelectorAll('.day').forEach(e=>e.classList.remove('selected','today'));
-    const dayDivs=document.querySelectorAll('.day');
-    dayDivs[today.getDate()-1].classList.add('selected','today');
+    showDayDetails(APP.year, APP.month+1, today.getDate());
 });
 
-// Initial render
-setTimeout(()=>{if(!APP.lat||!APP.lon) renderCalendar();},500);
-renderCalendar();
+// Geolocation
+if(navigator.geolocation){
+navigator.geolocation.watchPosition(pos=>{APP.lat=pos.coords.latitude; APP.lon=pos.coords.longitude; APP.tz=-(new Date().getTimezoneOffset()/60); renderCalendar();}, err=>{renderCalendar(); }, {enableHighAccuracy:true, maximumAge:10000, timeout:5000});
+}else{renderCalendar();}
 </script>
 </body>
 </html>
